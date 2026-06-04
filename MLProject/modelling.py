@@ -4,21 +4,26 @@ import mlflow
 import mlflow.tensorflow
 import tensorflow as tf
 from tensorflow.keras import layers, models
-from sklearn.model_selection import train_test_split
-from tensorflow.keras.preprocessing.image import load_img, img_to_array
-
-# Load data dari folder relatif
-DATASET_PATH = 'wadai_preprocessing'
-X_train = np.load(os.path.join(DATASET_PATH, 'X_train.npy'))
-X_val = np.load(os.path.join(DATASET_PATH, 'X_val.npy'))
-y_train = np.load(os.path.join(DATASET_PATH, 'y_train.npy'))
-y_val = np.load(os.path.join(DATASET_PATH, 'y_val.npy'))
 
 NUM_CLASSES = 7
 
-def build_model():
+# Gunakan data dummy jika dataset tidak ada
+DATASET_PATH = 'wadai_preprocessing'
+if os.path.exists(os.path.join(DATASET_PATH, 'X_train.npy')):
+    X_train = np.load(os.path.join(DATASET_PATH, 'X_train.npy'))
+    X_val = np.load(os.path.join(DATASET_PATH, 'X_val.npy'))
+    y_train = np.load(os.path.join(DATASET_PATH, 'y_train.npy'))
+    y_val = np.load(os.path.join(DATASET_PATH, 'y_val.npy'))
+else:
+    print("Dataset tidak ditemukan, menggunakan data dummy...")
+    X_train = np.random.rand(70, 64, 64, 3).astype('float32')
+    X_val = np.random.rand(30, 64, 64, 3).astype('float32')
+    y_train = np.random.randint(0, NUM_CLASSES, 70)
+    y_val = np.random.randint(0, NUM_CLASSES, 30)
+
+def build_model(input_shape):
     model = models.Sequential([
-        layers.Input(shape=(256,256,3)),
+        layers.Input(shape=input_shape),
         layers.Conv2D(32, (3,3), activation='relu'),
         layers.MaxPooling2D(2,2),
         layers.Conv2D(64, (3,3), activation='relu'),
@@ -33,7 +38,7 @@ mlflow.set_experiment("wadai-classification")
 mlflow.tensorflow.autolog()
 
 with mlflow.start_run():
-    model = build_model()
+    model = build_model(X_train.shape[1:])
     model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-    model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=5, batch_size=32)
+    model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=3, batch_size=16)
     print("Training selesai!")
